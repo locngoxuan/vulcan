@@ -1,0 +1,21 @@
+name: 'Example of zeus on vulcan'
+on:
+  branch: ['master']
+  event: ['push', 'pull-request', 'merge', 'tag', 'release']
+  schedule:
+    cron: '* * * * *'
+    repeat: every-day/every-hour
+jobs:
+  - name: 'Build and publish'
+    on: 'docker-image'
+    args:
+      Revision: '1.0.0'
+    steps:
+      - name: 'Build'
+        run: 'mvn clean install -U -Drevision={{.Revision}}'
+      - name: 'Deploy to jfrog'
+        use: 'plugin/deploy-to-jfrog'
+        with:
+          path: 'target/file'
+          username: '$USERNAME'
+          password: '$PASSWORD'
