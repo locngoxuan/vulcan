@@ -1,0 +1,15 @@
+name: 'Example of zeus on vulcan'
+jobs:
+  - name: 'Build and publish'
+    run-on: 'golang:1.16.5-alpine3.13'
+    steps:
+      - name: 'go get'
+        run: 'go get -v .'
+      - name: 'go mod tidy'
+        run: 'go mod tidy'
+      - name: 'go mod vendor'
+        run: 'rm -rf vendor && go mod vendor'
+      - name: 'build'
+        run: 'go build -ldflags="-s -w" -o ./bin/vulcan .'  
+      - name: 'output'
+        run: 'cp ./bin/vulcan ./.vulcan/vulcan'

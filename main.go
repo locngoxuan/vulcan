@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -24,6 +26,7 @@ func main() {
 	flag.Parse()
 
 	if *action = strings.TrimSpace(*action); *action == "" {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of: vulcan\n")
 		flag.PrintDefaults()
 		return
 	}
@@ -34,6 +37,7 @@ func main() {
 
 	if *envFile = strings.TrimSpace(*envFile); *envFile != "" {
 		//read then export environment variables
+		updateEnvFromFile(*envFile)
 	}
 
 	if envs != nil {
@@ -88,8 +92,8 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to read project configuration file: %v", err)
 			}
-			//prepare environemnt before runing build
 			for _, job := range c.Jobs {
+				//prepare environemnt before runing build
 				if job.Args != nil {
 					job.Args.ReplaceEnv()
 				}
@@ -106,4 +110,41 @@ func main() {
 			}
 		}
 	}
+}
+
+func updateEnvFromFile(envFile string) error {
+	f, err := os.Open(envFile)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fi.IsDir() {
+		return fmt.Errorf(`destination of env is not file`)
+	}
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		err = os.Setenv(parts[0], parts[1])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

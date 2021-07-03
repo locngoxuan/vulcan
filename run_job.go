@@ -3,12 +3,19 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/locngoxuan/vulcan/core"
 )
 
@@ -70,16 +77,13 @@ func runJob(pwd string, jobConfig core.JobConfig) error {
 	}
 	//write shell script
 	writeShellScript(pwd, shellCmds)
-	return nil
+	//run build inside docker
+	return runBuildInDocker(pwd, jobConfig.RunOn)
 }
 
 var shellBegin = `# exit when any command fails
 set -e
 
-# keep track of the last executed command
-trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
-# echo an error message before exiting
-trap 'echo "\"${last_command}\" command filed with exit code $?."' EXIT
 `
 
 func writeShellScript(pwd string, cmd []string) error {
@@ -100,5 +104,73 @@ func writeShellScript(pwd string, cmd []string) error {
 		writer.WriteString("\n")
 	}
 	writer.Flush()
+	return nil
+}
+
+func runBuildInDocker(pwd, image string) error {
+	//check and pull image if it is necessary
+	mounts := make([]mount.Mount, 0)
+	fileInfos, err := ioutil.ReadDir(pwd)
+	if err != nil {
+		return err
+	}
+
+	for _, fileInfo := range fileInfos {
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: filepath.Join(pwd, fileInfo.Name()),
+			Target: filepath.Join("/workdir", fileInfo.Name()),
+		})
+	}
+
+	dockerCommandArg := make([]string, 0)
+	dockerCommandArg = append(dockerCommandArg, "/bin/sh", "-c", "./vulcan.sh")
+	containerConfig := &container.Config{
+		Image:      image,
+		Cmd:        dockerCommandArg,
+		WorkingDir: "/workdir",
+	}
+	hostConfig := &container.HostConfig{
+		Mounts: mounts,
+	}
+
+	cli := dockerCli.Client
+	cont, err := cli.ContainerCreate(context.Background(), containerConfig, hostConfig, nil, nil, "")
+	if err != nil {
+		return err
+	}
+
+	defer core.RemoveAfterDone(cli, cont.ID)
+
+	err = cli.ContainerStart(context.Background(), cont.ID, types.ContainerStartOptions{})
+	if err != nil {
+		return err
+	}
+
+	statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			duration := 30 * time.Second
+			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
+			return err
+		}
+	case status := <-statusCh:
+		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
+		//in docker sdk that represents for both two state. Then I hard-code value 1 here
+		if status.StatusCode == 1 {
+			var buf bytes.Buffer
+			defer buf.Reset()
+			out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+			if err != nil {
+				return err
+			}
+			_, err = stdcopy.StdCopy(&buf, &buf, out)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf(buf.String())
+		}
+	}
 	return nil
 }

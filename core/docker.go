@@ -182,3 +182,9 @@ func DisplayDockerLog(in io.Reader) (string, error) {
 	}
 	return buf.String(), nil
 }
+
+func RemoveAfterDone(cli *client.Client, id string) {
+	_ = cli.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{
+		Force: true,
+	})
+}

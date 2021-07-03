@@ -7,7 +7,7 @@ on:
     repeat: every-day/every-hour
 jobs:
   - name: 'Build and publish'
-    on: 'docker-image'
+    run-on: 'docker-image'
     args:
       Revision: '1.0.0'
     steps:
