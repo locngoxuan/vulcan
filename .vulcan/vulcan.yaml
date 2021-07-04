@@ -1,14 +1,32 @@
-name: 'Example of zeus on vulcan'
+name: 'Using Vulcan to build Vulcan'
 jobs:
-  build-and-publish:
-    name: 'Build and publish'
+  vexec:
+    name: 'Build vulcan executor binary'
     run-on: 'golang:1.16.5-alpine3.13'
     steps:
-      - name: 'go get'
-        run: 'go get -v .'
-      - name: 'go mod tidy'
-        run: 'go mod tidy'
-      - name: 'go mod vendor'
-        run: 'rm -rf vendor && go mod vendor'
-      - name: 'build'
-        run: 'go build -ldflags="-s -w" -o ./bin/vulcan .'  
+      - name: 'add missing and remove unused mod'
+        run: go mod tidy
+      - name: 'download necessary modules and make vendored copy of dependencies'
+        run: |
+          go get -v
+          go mod download
+          rm -rf vendor
+          go mod vendor
+      - name: 'build binary file'
+        run: go build -ldflags="-s -w" -o ./bin/vexec ./cmd/vexec
+      - run: cp -r ./bin/vexec ./.vulcan/vexec
+  # build-and-publish:
+  #   name: 'Build and publish'
+  #   run-on: 'golang:1.16.5-alpine3.13'
+  #   artifact:
+  #     # - host:target
+  #     - ~/.m2/repository:/root/.m2/repository
+  #     - /tmp/node_modules:/workdir/node_modules
+  #   steps:
+  #     - run: |
+  #         go mod tidy
+  #         go get -v .
+  #         go mod download
+  #         rm -rf vendor
+  #         go mod vendor
+  #     - run: go build -ldflags="-s -w" -o ./bin/vulcan .

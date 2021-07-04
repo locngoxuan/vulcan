@@ -40,7 +40,7 @@ func main() {
 		//read then export environment variables
 		err := core.UpdateEnvFromFile(*envFile)
 		if err != nil {
-			log.Fatalf("failed to update env variables: %v", err)
+			log.Fatalf("failed to update env varibales: %v", err)
 		}
 	}
 
@@ -90,10 +90,6 @@ func main() {
 	for _, fileInfo := range fileInfos {
 		p := filepath.Join(vulCanDir, fileInfo.Name())
 		ext := filepath.Ext(p)
-		//exclude not yaml file
-		if ext != "yaml" && ext != "yml" {
-			continue
-		}
 		fileName := strings.TrimSuffix(fileInfo.Name(), ext)
 		if fileName == *action {
 			c, err := core.ReadProjectConfig(p)
@@ -101,9 +97,19 @@ func main() {
 				log.Fatalf("failed to read project configuration file: %v", err)
 			}
 			for id, job := range c.Jobs {
-				job.Id = strings.TrimSpace(id)
+				job.Id = id
+				//prepare environemnt before runing build
+				if job.Args != nil {
+					job.Args.ReplaceEnv()
+				}
+				for _, step := range job.Steps {
+					if step.With != nil {
+						step.With.ReplaceEnv()
+					}
+				}
+
 				//run job
-				err = runJob(p, id, job.RunOn)
+				err = runJob(*job)
 				if err != nil {
 					log.Fatalf("failed to run job %s: %v", job.Name, err)
 				}

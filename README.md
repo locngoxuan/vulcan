@@ -4,6 +4,8 @@
 
 Github Actions is awesome but it is not completely free and it requires Github environment. Vulcan is created to solve these issue. It is inspired by Github Actions, so you may figure out few similarity between their configuration syntax, but they may are different in mechanism and concept.
 
+Vulcan is a container-based build tool which run build process inside a docker container. It brings to you the independent and consistent build environment.
+
 With Vulcan, you may:
 - Be able to customize build tool
 - Take less cost due to it is open source and free
@@ -15,6 +17,7 @@ With Vulcan, you may:
 
 ## 2. Roadmap
 
-- Add capability to support plugin
+- Add step building controller (Vulcan Executor)
+- Add capability to support external plugin
 - Add capability to be deployed as a build system
 

@@ -48,6 +48,7 @@ type JobConfig struct {
 }
 
 type StepConfig struct {
+	Id   string      `yaml:"id,omitempty"`
 	Name string      `yaml:"name,omitempty"`
 	Run  string      `yaml:"run,omitempty"`
 	Use  string      `yaml:"use,omitempty"`

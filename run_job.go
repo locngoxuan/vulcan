@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
-	"text/template"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -18,79 +18,9 @@ import (
 	"github.com/locngoxuan/vulcan/core"
 )
 
-func runJob(jobConfig core.JobConfig) error {
-	//aggregate run command
-	var shellContents []string
-	globalArgs := make(map[string]string)
-
-	if jobConfig.Args != nil {
-		for k, v := range *jobConfig.Args {
-			globalArgs[k] = v
-		}
-	}
-	for i, step := range jobConfig.Steps {
-		//build local arguments
-		args := make(map[string]string)
-		for k, v := range globalArgs {
-			args[k] = v
-		}
-		if step.With != nil {
-			for k, v := range *step.With {
-				args[k] = v
-			}
-		}
-
-		//creaet command
-		var run string
-		if v := strings.TrimSpace(step.Run); v != "" {
-			run = v
-		} else if v := strings.TrimSpace(step.Use); v != "" {
-			var b strings.Builder
-			b.WriteString(v)
-			b.WriteString(" ")
-			if step.With != nil {
-				for k, v := range *step.With {
-					b.WriteString(fmt.Sprintf(`--%s`, k))
-					b.WriteString("=")
-					b.WriteString(v)
-					b.WriteString(" ")
-				}
-			}
-			run = b.String()
-		} else {
-			run = ""
-		}
-		if run == "" {
-			return fmt.Errorf(`step is not specified for running`)
-		}
-		var buf bytes.Buffer
-		t, err := template.New(fmt.Sprintf(`tmpl_%02d`, i)).Parse(run)
-		if err != nil {
-			return err
-		}
-		err = t.Execute(&buf, args)
-		if err != nil {
-			return err
-		}
-		shellContents = append(shellContents,
-			fmt.Sprintf(`echo 'Run step: %s'`, step.Name),
-			buf.String())
-	}
-	//write shell script
-	shFile, err := writeShellScript(jobConfig.Id, shellContents)
-	if err != nil {
-		return err
-	}
-	//remove shell script after done
-	defer func(p string) {
-		_ = removeShellScript(p)
-	}(shFile)
-	//run build inside docker
-	return runBuildInDocker(jobConfig.Id, jobConfig.RunOn)
-}
-
-func runBuildInDocker(jobId, image string) error {
+func runJob(configFile, jobId, runOn string) error {
 	//check and pull image if it is necessary
+	log.Printf("Job: %s", jobId)
 	mounts := make([]mount.Mount, 0)
 	fileInfos, err := ioutil.ReadDir(pwd)
 	if err != nil {
@@ -106,14 +36,26 @@ func runBuildInDocker(jobId, image string) error {
 	}
 
 	dockerCommandArg := make([]string, 0)
-	shFile := filepath.Join("/workdir", fmt.Sprintf(`%s.sh`, jobId))
-	dockerCommandArg = append(dockerCommandArg, "/bin/sh", "-c", shFile)
+	p, err := exec.LookPath("vexec")
+	if err != nil {
+		return err
+	}
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: p,
+		Target: filepath.Join("/bin", "vexec"),
+	})
+	dockerCommandArg = append(dockerCommandArg, "/bin/vexec",
+		"--config", configFile,
+		"--job-id", jobId)
+
 	containerConfig := &container.Config{
-		Image:        image,
+		Image:        runOn,
 		Cmd:          dockerCommandArg,
 		WorkingDir:   "/workdir",
 		Tty:          true,
 		AttachStdout: true,
+		Env:          os.Environ(),
 	}
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,
@@ -156,8 +98,6 @@ func runBuildInDocker(jobId, image string) error {
 				return err
 			}
 		case status := <-statusCh:
-			//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
-			//in docker sdk that represents for both two state. Then I hard-code value 1 here
 			if status.StatusCode != 0 {
 				var buf bytes.Buffer
 				defer buf.Reset()
