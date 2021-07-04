@@ -11,7 +11,7 @@ import (
 type ProjectConfig struct {
 	Name      string `yaml:"name,omitempty"`
 	*OnConfig `yaml:"on,omitempty"`
-	Jobs      []JobConfig `yaml:"jobs,omitempty"`
+	Jobs      map[string]*JobConfig `yaml:"jobs,omitempty"`
 }
 
 type OnConfig struct {
@@ -40,6 +40,7 @@ func (a ArgsConfig) ReplaceEnv() error {
 }
 
 type JobConfig struct {
+	Id    string       `yaml:"-"`
 	Name  string       `yaml:"name,omitempty"`
 	RunOn string       `yaml:"run-on,omitempty"`
 	Args  *ArgsConfig  `yaml:"args,omitempty"`

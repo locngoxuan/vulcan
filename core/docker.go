@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -38,7 +39,10 @@ func (c *DockerClient) ImageExist(ctx context.Context, imageRef string) (bool, [
 	if !strings.Contains(imageRef, ":") {
 		imageRef = fmt.Sprintf("%s:latest", imageRef)
 	}
-	args := filters.NewArgs(filters.KeyValuePair{"reference", imageRef})
+	args := filters.NewArgs(filters.KeyValuePair{
+		Key:   "reference",
+		Value: imageRef,
+	})
 	images, err := c.Client.ImageList(ctx, types.ImageListOptions{Filters: args})
 	if err != nil {
 		return false, nil, err
@@ -181,6 +185,19 @@ func DisplayDockerLog(in io.Reader) (string, error) {
 		buf.WriteString(jm.Stream)
 	}
 	return buf.String(), nil
+}
+
+type StreamHandler func(s string)
+
+func StreamDockerLog(in io.Reader, f StreamHandler) {
+	r := bufio.NewReader(in)
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			break
+		}
+		f(strings.TrimSuffix(line, "\n"))
+	}
 }
 
 func RemoveAfterDone(cli *client.Client, id string) {

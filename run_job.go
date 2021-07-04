@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
+	"log"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -19,9 +18,9 @@ import (
 	"github.com/locngoxuan/vulcan/core"
 )
 
-func runJob(pwd string, jobConfig core.JobConfig) error {
+func runJob(jobConfig core.JobConfig) error {
 	//aggregate run command
-	var shellCmds []string
+	var shellContents []string
 	globalArgs := make(map[string]string)
 
 	if jobConfig.Args != nil {
@@ -73,41 +72,24 @@ func runJob(pwd string, jobConfig core.JobConfig) error {
 		if err != nil {
 			return err
 		}
-		shellCmds = append(shellCmds, buf.String())
+		shellContents = append(shellContents,
+			fmt.Sprintf(`echo 'Run step: %s'`, step.Name),
+			buf.String())
 	}
 	//write shell script
-	writeShellScript(pwd, shellCmds)
-	//run build inside docker
-	return runBuildInDocker(pwd, jobConfig.RunOn)
-}
-
-var shellBegin = `# exit when any command fails
-set -e
-
-`
-
-func writeShellScript(pwd string, cmd []string) error {
-	p := filepath.Join(pwd, "vulcan.sh")
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+	shFile, err := writeShellScript(jobConfig.Id, shellContents)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = f.Close()
-	}()
-	writer := bufio.NewWriter(f)
-	writer.WriteString(shellBegin)
-	writer.WriteString("\n")
-	for _, line := range cmd {
-		writer.WriteString(line)
-		writer.WriteString("\n")
-		writer.WriteString("\n")
-	}
-	writer.Flush()
-	return nil
+	//remove shell script after done
+	defer func(p string) {
+		_ = removeShellScript(p)
+	}(shFile)
+	//run build inside docker
+	return runBuildInDocker(jobConfig.Id, jobConfig.RunOn)
 }
 
-func runBuildInDocker(pwd, image string) error {
+func runBuildInDocker(jobId, image string) error {
 	//check and pull image if it is necessary
 	mounts := make([]mount.Mount, 0)
 	fileInfos, err := ioutil.ReadDir(pwd)
@@ -124,11 +106,14 @@ func runBuildInDocker(pwd, image string) error {
 	}
 
 	dockerCommandArg := make([]string, 0)
-	dockerCommandArg = append(dockerCommandArg, "/bin/sh", "-c", "./vulcan.sh")
+	shFile := filepath.Join("/workdir", fmt.Sprintf(`%s.sh`, jobId))
+	dockerCommandArg = append(dockerCommandArg, "/bin/sh", "-c", shFile)
 	containerConfig := &container.Config{
-		Image:      image,
-		Cmd:        dockerCommandArg,
-		WorkingDir: "/workdir",
+		Image:        image,
+		Cmd:          dockerCommandArg,
+		WorkingDir:   "/workdir",
+		Tty:          true,
+		AttachStdout: true,
 	}
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,
@@ -147,29 +132,45 @@ func runBuildInDocker(pwd, image string) error {
 		return err
 	}
 
-	statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
+	if verbose {
+		out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Timestamps: false,
+			Follow:     true,
+			Tail:       "20",
+		})
 		if err != nil {
-			duration := 30 * time.Second
-			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
 			return err
 		}
-	case status := <-statusCh:
-		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
-		//in docker sdk that represents for both two state. Then I hard-code value 1 here
-		if status.StatusCode == 1 {
-			var buf bytes.Buffer
-			defer buf.Reset()
-			out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+		core.StreamDockerLog(out, func(s string) {
+			log.Println(s)
+		})
+	} else {
+		statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
+		select {
+		case err := <-errCh:
 			if err != nil {
+				duration := 30 * time.Second
+				_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
 				return err
 			}
-			_, err = stdcopy.StdCopy(&buf, &buf, out)
-			if err != nil {
-				return err
+		case status := <-statusCh:
+			//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
+			//in docker sdk that represents for both two state. Then I hard-code value 1 here
+			if status.StatusCode != 0 {
+				var buf bytes.Buffer
+				defer buf.Reset()
+				out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+				if err != nil {
+					return err
+				}
+				_, err = stdcopy.StdCopy(&buf, &buf, out)
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf(buf.String())
 			}
-			return fmt.Errorf(buf.String())
 		}
 	}
 	return nil

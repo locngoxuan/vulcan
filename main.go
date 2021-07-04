@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -15,12 +14,18 @@ import (
 )
 
 var dockerCli core.DockerClient
+var pwd string
+var verbose bool
 
-//vulcan --config-docker {config-file} --env-file {} --env --action {action-name}
+// vulcan --config-docker {config-file}
+// --env-file {} --env --action {action-name}
+// --share-dir {path-to-share} --verbose
+// --plugin-dir {path-to-plugin}
 func main() {
 	configDocker := flag.String("config-docker", "", "specify location of docker configuration file.")
 	envFile := flag.String("env-file", "", "specify location of environment file.")
 	action := flag.String("action", "", "specify action for running.")
+	flag.BoolVar(&verbose, "verbose", false, "print detail of build.")
 	var envs core.EnvPairs
 	flag.Var(&envs, "env", "set environment variables")
 	flag.Parse()
@@ -63,7 +68,7 @@ func main() {
 		log.Fatalf("failed to connect docker host: %v", err)
 	}
 
-	pwd, err := filepath.Abs(".")
+	pwd, err = filepath.Abs(".")
 	if err != nil {
 		log.Fatalf("failed to get present working directory: %v", err)
 	}
@@ -92,7 +97,8 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to read project configuration file: %v", err)
 			}
-			for _, job := range c.Jobs {
+			for id, job := range c.Jobs {
+				job.Id = id
 				//prepare environemnt before runing build
 				if job.Args != nil {
 					job.Args.ReplaceEnv()
@@ -103,48 +109,12 @@ func main() {
 					}
 				}
 
-				err = runJob(pwd, job)
+				//run job
+				err = runJob(*job)
 				if err != nil {
 					log.Fatalf("failed to run job %s: %v", job.Name, err)
 				}
 			}
 		}
 	}
-}
-
-func updateEnvFromFile(envFile string) error {
-	f, err := os.Open(envFile)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = f.Close()
-	}()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return err
-	}
-
-	if fi.IsDir() {
-		return fmt.Errorf(`destination of env is not file`)
-	}
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
-			continue
-		}
-		err = os.Setenv(parts[0], parts[1])
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
