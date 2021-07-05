@@ -42,24 +42,25 @@ func main() {
 
 	if toolChains = strings.TrimSpace(toolChains); toolChains == "" {
 		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
-		if vucalHome != "" {
+		if vucalHome == "" {
 			p, err := exec.LookPath("vlocal")
 			if err != nil {
 				log.Fatalln(err)
 			}
-			vucalHome = filepath.Dir(p)
+			//return bin
+			vucalHome = filepath.Dir(filepath.Dir(p))
 		}
 		toolChains = filepath.Join(vucalHome, "toolchains")
 	}
 
 	if plugins = strings.TrimSpace(toolChains); plugins == "" {
 		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
-		if vucalHome != "" {
+		if vucalHome == "" {
 			p, err := exec.LookPath("vlocal")
 			if err != nil {
 				log.Fatalln(err)
 			}
-			vucalHome = filepath.Dir(p)
+			vucalHome = filepath.Dir(filepath.Dir(p))
 		}
 		plugins = filepath.Join(vucalHome, "plugins")
 	}
