@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -16,11 +17,16 @@ import (
 var dockerCli core.DockerClient
 var pwd string
 var verbose bool
+var toolChains string
+var plugins string
 
 func main() {
 	configDocker := flag.String("config-docker", "", "specify location of docker configuration file.")
 	envFile := flag.String("env-file", "", "specify location of environment file.")
 	action := flag.String("action", "", "specify action for running.")
+	jobId := flag.String("job", "", "specify job for running.")
+	flag.StringVar(&toolChains, "toolchain", "", "specify location of toolchains directory.")
+	flag.StringVar(&plugins, "plugin", "", "specify location of plugins directory.")
 	flag.BoolVar(&verbose, "verbose", false, "print detail of build.")
 	var envs core.EnvPairs
 	flag.Var(&envs, "env", "set environment variables")
@@ -30,6 +36,32 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of: vulcan\n")
 		flag.PrintDefaults()
 		return
+	}
+
+	*jobId = strings.TrimSpace(*jobId)
+
+	if toolChains = strings.TrimSpace(toolChains); toolChains == "" {
+		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
+		if vucalHome != "" {
+			p, err := exec.LookPath("vlocal")
+			if err != nil {
+				log.Fatalln(err)
+			}
+			vucalHome = filepath.Dir(p)
+		}
+		toolChains = filepath.Join(vucalHome, "toolchains")
+	}
+
+	if plugins = strings.TrimSpace(toolChains); plugins == "" {
+		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
+		if vucalHome != "" {
+			p, err := exec.LookPath("vlocal")
+			if err != nil {
+				log.Fatalln(err)
+			}
+			vucalHome = filepath.Dir(p)
+		}
+		plugins = filepath.Join(vucalHome, "plugins")
 	}
 
 	if *configDocker = strings.TrimSpace(*configDocker); *configDocker != "" {
@@ -91,7 +123,7 @@ func main() {
 		p := filepath.Join(vulCanDir, fileInfo.Name())
 		ext := filepath.Ext(p)
 		//exclude not yaml file
-		if ext != "yaml" && ext != "yml" {
+		if ext != ".yaml" && ext != ".yml" {
 			continue
 		}
 		fileName := strings.TrimSuffix(fileInfo.Name(), ext)
@@ -103,9 +135,15 @@ func main() {
 			for id, job := range c.Jobs {
 				job.Id = strings.TrimSpace(id)
 				//run job
-				err = runJob(p, id, job.RunOn)
-				if err != nil {
-					log.Fatalf("failed to run job %s: %v", job.Name, err)
+				if *jobId == "" || *jobId == job.Id {
+					err = runJob(fileInfo.Name(), id, job.RunOn)
+					if err != nil {
+						log.Printf("failed to run job: %s", job.Name)
+						log.Println("=== BEGIN: Error Message ===")
+						log.Printf("%v", err)
+						log.Println("=== END: Error Message ===")
+						os.Exit(1)
+					}
 				}
 			}
 		}

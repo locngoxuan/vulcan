@@ -8,13 +8,11 @@ jobs:
         run: go mod tidy
       - name: 'download necessary modules and make vendored copy of dependencies'
         run: |
-          go get -v
-          go mod download
+          go get -v ./cmd/vexec
           rm -rf vendor
           go mod vendor
       - name: 'build binary file'
-        run: go build -ldflags="-s -w" -o ./bin/vexec ./cmd/vexec
-      - run: cp -r ./bin/vexec ./.vulcan/vexec
+        run: go build -o ./bin/vexec ./cmd/vexec
   # build-and-publish:
   #   name: 'Build and publish'
   #   run-on: 'golang:1.16.5-alpine3.13'

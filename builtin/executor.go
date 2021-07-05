@@ -55,8 +55,12 @@ func runJob(c *core.JobConfig) error {
 			globalArgs[k] = v
 		}
 	}
-	stepOutput := filepath.Join("tmp", "vulcan", "step")
+	stepOutput := filepath.Join("/tmp", "vulcan", "step")
 	err := os.MkdirAll(stepOutput, 0755)
+	if err != nil {
+		return err
+	}
+	err = os.Setenv("GOTMPDIR", "/tmp")
 	if err != nil {
 		return err
 	}
@@ -122,6 +126,7 @@ func runJob(c *core.JobConfig) error {
 					args[k] = v
 				}
 			}
+			runCommandLine("whoami", args)
 			err = runCommandLine(cmdLine, args)
 			if err != nil {
 				return err

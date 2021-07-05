@@ -21,3 +21,14 @@ With Vulcan, you may:
 - Add capability to support external plugin
 - Add capability to be deployed as a build system
 
+## 3. How to install
+
+```bash
+$ git clone git@github.com:locngoxuan/vulcan.git
+
+$ make && make install
+
+$ export VULCAN_HOME=~/.vulcan
+
+$ export PATH=$VULCAN_HOME/bin:$PATH
+```

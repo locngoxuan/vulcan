@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -36,15 +35,14 @@ func runJob(configFile, jobId, runOn string) error {
 	}
 
 	dockerCommandArg := make([]string, 0)
-	p, err := exec.LookPath("vexec")
-	if err != nil {
-		return err
-	}
+	vexecLocated := filepath.Join(toolChains, "vexec")
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: p,
+		Source: vexecLocated,
 		Target: filepath.Join("/bin", "vexec"),
 	})
+
+	configFile = filepath.Join("/workdir", ".vulcan", configFile)
 	dockerCommandArg = append(dockerCommandArg, "/bin/vexec",
 		"--config", configFile,
 		"--job-id", jobId)
@@ -53,8 +51,8 @@ func runJob(configFile, jobId, runOn string) error {
 		Image:        runOn,
 		Cmd:          dockerCommandArg,
 		WorkingDir:   "/workdir",
-		Tty:          true,
-		AttachStdout: true,
+		Tty:          verbose,
+		AttachStdout: verbose,
 		Env:          os.Environ(),
 	}
 	hostConfig := &container.HostConfig{
@@ -66,7 +64,6 @@ func runJob(configFile, jobId, runOn string) error {
 	if err != nil {
 		return err
 	}
-
 	defer core.RemoveAfterDone(cli, cont.ID)
 
 	err = cli.ContainerStart(context.Background(), cont.ID, types.ContainerStartOptions{})
@@ -98,7 +95,7 @@ func runJob(configFile, jobId, runOn string) error {
 				return err
 			}
 		case status := <-statusCh:
-			if status.StatusCode != 0 {
+			if status.StatusCode == 1 {
 				var buf bytes.Buffer
 				defer buf.Reset()
 				out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
