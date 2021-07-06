@@ -26,9 +26,15 @@ With Vulcan, you may:
 ```bash
 $ git clone git@github.com:locngoxuan/vulcan.git
 
+$ cd vulcan
+
 $ make && make install
 
 $ export VULCAN_HOME=~/.vulcan
 
 $ export PATH=$VULCAN_HOME/bin:$PATH
+
+$ source .
+
+$ vlocal --action example [--job set-var] //empty is all jobs
 ```

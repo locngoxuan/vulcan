@@ -26,7 +26,7 @@ jobs:
           go mod vendor
       - name: 'build binary file'
         run: go build -ldflags='-s -w' -o ./bin/vset ./cmd/vset
-  set:
+  set-var:
     name: 'Example of variable setter'
     run-on: 'golang:1.16.5-alpine3.13'
     args:
