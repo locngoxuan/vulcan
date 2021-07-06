@@ -12,19 +12,4 @@ jobs:
           rm -rf vendor
           go mod vendor
       - name: 'build binary file'
-        run: go build -o ./bin/vexec ./cmd/vexec
-  # build-and-publish:
-  #   name: 'Build and publish'
-  #   run-on: 'golang:1.16.5-alpine3.13'
-  #   artifact:
-  #     # - host:target
-  #     - ~/.m2/repository:/root/.m2/repository
-  #     - /tmp/node_modules:/workdir/node_modules
-  #   steps:
-  #     - run: |
-  #         go mod tidy
-  #         go get -v .
-  #         go mod download
-  #         rm -rf vendor
-  #         go mod vendor
-  #     - run: go build -ldflags="-s -w" -o ./bin/vulcan .
+        run: go build -ldflags='-s -w' -o ./bin/vexec ./cmd/vexec

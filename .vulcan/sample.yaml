@@ -11,6 +11,10 @@ jobs:
   Build-And-Publish:
     - name: 'Build and publish'
       run-on: 'docker-image'
+      #os: linux or darwin or wins
+      #arch: amd64
+      #artifacts:
+      #  - {host}:{target}
       args:
         Revision: '1.0.0'
       steps:

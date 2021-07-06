@@ -55,7 +55,6 @@ func runJob(c *core.JobConfig) error {
 			globalArgs[k] = v
 		}
 	}
-	stepOutput := filepath.Join("/tmp", "vulcan", "step")
 	err := os.MkdirAll(stepOutput, 0755)
 	if err != nil {
 		return err
@@ -99,7 +98,6 @@ func runJob(c *core.JobConfig) error {
 		if v := strings.TrimSpace(step.Run); v != "" {
 			cmdlines := strings.Split(v, "\n")
 			for _, cmdLine := range cmdlines {
-				cmdLine = strings.TrimSpace(cmdLine)
 				err = runCommandLine(cmdLine, args)
 				if err != nil {
 					return err
@@ -126,7 +124,6 @@ func runJob(c *core.JobConfig) error {
 					args[k] = v
 				}
 			}
-			runCommandLine("whoami", args)
 			err = runCommandLine(cmdLine, args)
 			if err != nil {
 				return err
@@ -165,6 +162,7 @@ func runJob(c *core.JobConfig) error {
 }
 
 func runCommandLine(cmdLine string, args map[string]string) error {
+	cmdLine = strings.TrimSpace(cmdLine)
 	fmt.Printf("Run: %s\n", cmdLine)
 	var buf bytes.Buffer
 	t, err := template.New("").Parse(cmdLine)
@@ -176,8 +174,11 @@ func runCommandLine(cmdLine string, args map[string]string) error {
 		return err
 	}
 
-	parts := strings.Split(cmdLine, " ")
-	cmd := exec.Command(parts[0], parts[1:]...)
+	cmdArgs, err := core.ParseCommandLine(cmdLine)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

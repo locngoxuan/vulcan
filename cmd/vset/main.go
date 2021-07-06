@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	err := builtin.RunVExec()
+	err := builtin.RunVSet()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

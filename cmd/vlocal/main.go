@@ -28,7 +28,7 @@ func main() {
 	flag.StringVar(&toolChains, "toolchain", "", "specify location of toolchains directory.")
 	flag.StringVar(&plugins, "plugin", "", "specify location of plugins directory.")
 	flag.BoolVar(&verbose, "verbose", false, "print detail of build.")
-	var envs core.EnvPairs
+	var envs core.StringList
 	flag.Var(&envs, "env", "set environment variables")
 	flag.Parse()
 

@@ -4,14 +4,14 @@ import (
 	"fmt"
 )
 
-type EnvPairs []string
+type StringList []string
 
 // Implement the flag.Value interface
-func (s *EnvPairs) String() string {
+func (s *StringList) String() string {
 	return fmt.Sprintf("%v", *s)
 }
 
-func (s *EnvPairs) Set(value string) error {
+func (s *StringList) Set(value string) error {
 	*s = append(*s, value)
 	return nil
 }

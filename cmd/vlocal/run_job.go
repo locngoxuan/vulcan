@@ -35,11 +35,10 @@ func runJob(configFile, jobId, runOn string) error {
 	}
 
 	dockerCommandArg := make([]string, 0)
-	vexecLocated := filepath.Join(toolChains, "vexec")
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: vexecLocated,
-		Target: filepath.Join("/bin", "vexec"),
+		Source: toolChains,
+		Target: filepath.Join("/bin"),
 	})
 
 	configFile = filepath.Join("/workdir", ".vulcan", configFile)

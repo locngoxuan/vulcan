@@ -2,12 +2,12 @@
 
 PWD=$(shell pwd)
 
-default: clean vexec vlocal
+default: clean toolchains vlocal
 
 clean:
 	@rm -rf output
 
-vexec:
+toolchains: 
 	@mkdir -p output/vulcan/toolchains
 	docker run -it --rm \
 	-v $(PWD)/builtin:/app/builtin \
@@ -15,9 +15,9 @@ vexec:
 	-v $(PWD)/core:/app/core \
 	-v $(PWD)/go.mod:/app/go.mod \
 	-v $(PWD)/output:/app/output \
-	-v $(PWD)/build-vexec.sh:/app/build-vexec.sh \
+	-v $(PWD)/toolchains.sh:/app/toolchains.sh \
 	--workdir=/app \
-	golang:1.16.5-alpine3.13 /bin/sh -c ./build-vexec.sh
+	golang:1.16.5-alpine3.13 /bin/sh -c ./toolchains.sh
 
 vlocal:
 	@mkdir -p output/vulcan/bin	
