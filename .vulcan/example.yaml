@@ -1,0 +1,39 @@
+name: 'Using Vulcan to build Vulcan'
+jobs:
+  vexec:
+    name: 'Build vulcan executor binary'
+    run-on: 'golang:1.16.5-alpine3.13'
+    steps:
+      - name: 'add missing and remove unused mod'
+        run: go mod tidy
+      - name: 'download necessary modules and make vendored copy of dependencies'
+        run: |
+          go get -v ./cmd/vexec
+          rm -rf vendor
+          go mod vendor
+      - name: 'build binary file'
+        run: go build -ldflags='-s -w' -o ./bin/vexec ./cmd/vexec
+  vset:
+    name: 'Build vulcan variable setter'
+    run-on: 'golang:1.16.5-alpine3.13'
+    steps:
+      - name: 'add missing and remove unused mod'
+        run: go mod tidy
+      - name: 'download necessary modules and make vendored copy of dependencies'
+        run: |
+          go get -v ./cmd/vset
+          rm -rf vendor
+          go mod vendor
+      - name: 'build binary file'
+        run: go build -ldflags='-s -w' -o ./bin/vset ./cmd/vset
+  set:
+    name: 'Example of variable setter'
+    run-on: 'golang:1.16.5-alpine3.13'
+    args:
+      job_args: 'this is arg of job'
+    steps:
+      - name: 'set variable'
+        id: set_var
+        run: vset --kv msg1=variable --kv msg2=setter --step-id set_var
+      - name: 'print variable'
+        run: echo "{{.job_args}} '{{.steps_set_var_outputs_msg1}} {{.steps_set_var_outputs_msg2}}'"

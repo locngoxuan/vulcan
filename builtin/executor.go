@@ -151,9 +151,9 @@ func runJob(c *core.JobConfig) error {
 			for _, line := range lines {
 				parts := strings.Split(line, "=")
 				if len(parts) == 2 {
-					args[fmt.Sprintf(`steps.%s.outputs.%s`, step.Id, parts[0])] = parts[1]
+					globalArgs[fmt.Sprintf(`steps_%s_outputs_%s`, step.Id, parts[0])] = parts[1]
 				} else if len(parts) > 2 {
-					args[fmt.Sprintf(`steps.%s.outputs.%s`, step.Id, parts[0])] = strings.Join(parts[1:], "=")
+					globalArgs[fmt.Sprintf(`steps_%s_outputs_%s`, step.Id, parts[0])] = strings.Join(parts[1:], "=")
 				}
 			}
 		}
@@ -165,7 +165,7 @@ func runCommandLine(cmdLine string, args map[string]string) error {
 	cmdLine = strings.TrimSpace(cmdLine)
 	fmt.Printf("Run: %s\n", cmdLine)
 	var buf bytes.Buffer
-	t, err := template.New("").Parse(cmdLine)
+	t, err := template.New("tmpl").Parse(cmdLine)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func runCommandLine(cmdLine string, args map[string]string) error {
 		return err
 	}
 
-	cmdArgs, err := core.ParseCommandLine(cmdLine)
+	cmdArgs, err := core.ParseCommandLine(buf.String())
 	if err != nil {
 		return err
 	}

@@ -53,7 +53,6 @@ var states = map[cmdParserState]cmdParser{
 			if r == '\'' || r == '"' {
 				if openQuote == rune(0) {
 					openQuote = r
-					j++
 					continue
 				}
 				if rune(line[j-1]) == '\\' {
@@ -64,6 +63,7 @@ var states = map[cmdParserState]cmdParser{
 					j += 1
 					break
 				}
+				b.WriteRune(r)
 				continue
 			}
 			if r == ' ' && openQuote == rune(0) {

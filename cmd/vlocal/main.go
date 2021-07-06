@@ -52,6 +52,7 @@ func main() {
 		}
 		toolChains = filepath.Join(vucalHome, "toolchains")
 	}
+	log.Printf("Toolchains directory: %s", toolChains)
 
 	if plugins = strings.TrimSpace(toolChains); plugins == "" {
 		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
@@ -64,6 +65,7 @@ func main() {
 		}
 		plugins = filepath.Join(vucalHome, "plugins")
 	}
+	log.Printf("Plugins directory: %s", plugins)
 
 	if *configDocker = strings.TrimSpace(*configDocker); *configDocker != "" {
 		//read docker configuration
