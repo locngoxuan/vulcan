@@ -100,8 +100,9 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 					if err != nil {
 						return err
 					}
+				} else {
+					return err
 				}
-				return err
 			}
 
 			if _, ok := set[h]; !ok {
