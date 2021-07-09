@@ -139,7 +139,7 @@ func main() {
 				job.Id = strings.TrimSpace(id)
 				//run job
 				if *jobId == "" || *jobId == job.Id {
-					err = runJob(fileInfo.Name(), id, job.RunOn)
+					err = runJob(fileInfo.Name(), *job)
 					if err != nil {
 						log.Printf("failed to run job: %s", job.Name)
 						log.Println("=== BEGIN: Error Message ===")

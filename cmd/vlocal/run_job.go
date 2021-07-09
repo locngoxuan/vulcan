@@ -21,9 +21,9 @@ import (
 
 var workDir = "/workdir"
 
-func runJob(configFile, jobId, runOn string) error {
+func runJob(configFile string, jobConfig core.JobConfig) error {
 	//check and pull image if it is necessary
-	log.Printf("Job: %s", jobId)
+	log.Printf("Job: %s", jobConfig.Id)
 	mounts := make([]mount.Mount, 0)
 	err := filepath.Walk(pwd, func(path string, info fs.FileInfo, err error) error {
 		if pwd == path {
@@ -40,6 +40,55 @@ func runJob(configFile, jobId, runOn string) error {
 		})
 		return nil
 	})
+
+	if jobConfig.Artifacts != nil {
+		for _, artifact := range jobConfig.Artifacts {
+			parts := strings.Split(artifact, ":")
+			host := strings.TrimSpace(parts[0])
+			target := strings.TrimSpace(parts[1])
+			if strings.HasPrefix(host, "~") {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return err
+				}
+				host = filepath.Join(home, host[1:])
+			}
+
+			if strings.HasPrefix(target, "/") {
+
+			} else if strings.HasPrefix(target, "~") {
+				target = filepath.Join("/root", target)
+			} else {
+				target = filepath.Join(workDir, target)
+			}
+
+			h, err := filepath.Abs(host)
+			if err != nil {
+				return err
+			}
+			t, err := filepath.Abs(target)
+			if err != nil {
+				return err
+			}
+
+			_, err = os.Stat(h)
+			if err != nil {
+				if os.IsNotExist(err) {
+					err = os.MkdirAll(h, 0755)
+					if err != nil {
+						return err
+					}
+				}
+				return err
+			}
+
+			mounts = append(mounts, mount.Mount{
+				Type:   mount.TypeBind,
+				Source: h,
+				Target: t,
+			})
+		}
+	}
 
 	dockerCommandArg := make([]string, 0)
 	fis, err := ioutil.ReadDir(toolChains)
@@ -58,10 +107,10 @@ func runJob(configFile, jobId, runOn string) error {
 	configFile = filepath.Join(workDir, ".vulcan", configFile)
 	dockerCommandArg = append(dockerCommandArg, "/bin/vexec",
 		"--config", configFile,
-		"--job-id", jobId)
+		"--job-id", jobConfig.Id)
 
 	containerConfig := &container.Config{
-		Image:        runOn,
+		Image:        jobConfig.RunOn,
 		Cmd:          dockerCommandArg,
 		WorkingDir:   workDir,
 		Tty:          verbose,

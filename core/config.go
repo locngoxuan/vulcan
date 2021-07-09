@@ -40,11 +40,14 @@ func (a ArgsConfig) ReplaceEnv() error {
 }
 
 type JobConfig struct {
-	Id    string       `yaml:"-"`
-	Name  string       `yaml:"name,omitempty"`
-	RunOn string       `yaml:"run-on,omitempty"`
-	Args  *ArgsConfig  `yaml:"args,omitempty"`
-	Steps []StepConfig `yaml:"steps,omitempty"`
+	Id        string       `yaml:"-"`
+	Name      string       `yaml:"name,omitempty"`
+	RunOn     string       `yaml:"run-on,omitempty"`
+	OS        string       `yaml:"os,omitempty"`
+	Arch      string       `yaml:"arch,omitempty"`
+	Artifacts []string     `yaml:"artifacts,omitempty"`
+	Args      *ArgsConfig  `yaml:"args,omitempty"`
+	Steps     []StepConfig `yaml:"steps,omitempty"`
 }
 
 type StepConfig struct {
