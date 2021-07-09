@@ -43,6 +43,7 @@ type JobConfig struct {
 	Id        string       `yaml:"-"`
 	Name      string       `yaml:"name,omitempty"`
 	RunOn     string       `yaml:"run-on,omitempty"`
+	BaseDir   string       `yaml:"base-dir,omitempty"`
 	OS        string       `yaml:"os,omitempty"`
 	Arch      string       `yaml:"arch,omitempty"`
 	Artifacts []string     `yaml:"artifacts,omitempty"`

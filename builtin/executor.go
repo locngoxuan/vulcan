@@ -178,7 +178,19 @@ func runCommandLine(cmdLine string, args map[string]string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	execFile := ""
+	argStart := 0
+	for i, arg := range cmdArgs {
+		execFile = strings.TrimSpace(arg)
+		if execFile != "" {
+			argStart = i + 1
+			break
+		}
+	}
+	if argStart > len(cmdArgs) {
+		argStart = len(cmdArgs)
+	}
+	cmd := exec.Command(execFile, cmdArgs[argStart:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

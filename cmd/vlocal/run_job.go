@@ -21,18 +21,32 @@ import (
 
 var workDir = "/workdir"
 
-func runJob(configFile string, jobConfig core.JobConfig) error {
+func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 	//check and pull image if it is necessary
 	log.Printf("Job: %s", jobConfig.Id)
 	mounts := make([]mount.Mount, 0)
-	err := filepath.Walk(pwd, func(path string, info fs.FileInfo, err error) error {
-		if pwd == path {
+	baseDir := filepath.Join(pwd, jobConfig.BaseDir)
+	vulcanConfig := filepath.Join(pwd, ".vulcan")
+	set := make(map[string]struct{})
+	err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+		if strings.HasPrefix(path, vulcanConfig) {
 			return nil
 		}
-		if info.IsDir() {
+		if baseDir == path {
 			return nil
 		}
-		f := strings.TrimPrefix(path, pwd)
+		if !info.IsDir() {
+			if filepath.Dir(path) != baseDir {
+				return nil
+			}
+		}
+		for p := range set {
+			if strings.HasPrefix(path, p) {
+				return nil
+			}
+		}
+		f := strings.TrimPrefix(path, baseDir)
+		set[path] = struct{}{}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: path,
@@ -40,6 +54,14 @@ func runJob(configFile string, jobConfig core.JobConfig) error {
 		})
 		return nil
 	})
+
+	if _, ok := set[vulcanConfig]; !ok {
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: vulcanConfig,
+			Target: filepath.Join(workDir, ".vulcan"),
+		})
+	}
 
 	if jobConfig.Artifacts != nil {
 		for _, artifact := range jobConfig.Artifacts {
@@ -82,11 +104,14 @@ func runJob(configFile string, jobConfig core.JobConfig) error {
 				return err
 			}
 
-			mounts = append(mounts, mount.Mount{
-				Type:   mount.TypeBind,
-				Source: h,
-				Target: t,
-			})
+			if _, ok := set[h]; !ok {
+				mounts = append(mounts, mount.Mount{
+					Type:   mount.TypeBind,
+					Source: h,
+					Target: t,
+				})
+			}
+
 		}
 	}
 
@@ -115,7 +140,7 @@ func runJob(configFile string, jobConfig core.JobConfig) error {
 		WorkingDir:   workDir,
 		Tty:          verbose,
 		AttachStdout: verbose,
-		Env:          os.Environ(),
+		Env:          envs,
 	}
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,

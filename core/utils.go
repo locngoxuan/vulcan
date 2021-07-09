@@ -18,10 +18,10 @@ func ReadEnvVariableIfHas(str string) string {
 	return origin
 }
 
-func UpdateEnvFromFile(envFile string) error {
+func UpdateEnvFromFile(envFile string) ([]string, error) {
 	f, err := os.Open(envFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer func() {
@@ -30,27 +30,29 @@ func UpdateEnvFromFile(envFile string) error {
 
 	fi, err := f.Stat()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if fi.IsDir() {
-		return fmt.Errorf(`destination of env is not file`)
+		return nil, fmt.Errorf(`destination of env is not file`)
 	}
 
 	scanner := bufio.NewScanner(f)
+	var envs []string
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			continue
 		}
+		envs = append(envs, line)
 		err = os.Setenv(parts[0], parts[1])
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return envs, nil
 }

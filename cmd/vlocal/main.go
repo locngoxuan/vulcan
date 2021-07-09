@@ -73,28 +73,15 @@ func main() {
 
 	if *envFile = strings.TrimSpace(*envFile); *envFile != "" {
 		//read then export environment variables
-		err := core.UpdateEnvFromFile(*envFile)
+		envFiles, err := core.UpdateEnvFromFile(*envFile)
 		if err != nil {
 			log.Fatalf("failed to update env variables: %v", err)
 		}
-	}
-
-	if envs != nil {
-		for _, envPair := range envs {
-			parts := strings.Split(strings.TrimSpace(envPair), "=")
-			if len(parts) == 2 {
-				err := os.Setenv(parts[0], parts[1])
-				if err != nil {
-					log.Fatalf("failed to set env variable: %v", err)
-				}
-			} else if len(parts) > 2 {
-				err := os.Setenv(parts[0], strings.Join(parts[1:], "="))
-				if err != nil {
-					log.Fatalf("failed to set env variable: %v", err)
-				}
-			}
+		if envFiles != nil && envs != nil {
+			envs = append(envs, envFiles...)
 		}
 	}
+
 	var err error
 	dockerCli, err = core.ConnectDockerHost(context.Background(),
 		[]string{core.DefaultDockerUnixSock, core.DefaultDockerTCPSock})
@@ -139,7 +126,7 @@ func main() {
 				job.Id = strings.TrimSpace(id)
 				//run job
 				if *jobId == "" || *jobId == job.Id {
-					err = runJob(fileInfo.Name(), *job)
+					err = runJob(fileInfo.Name(), *job, envs)
 					if err != nil {
 						log.Printf("failed to run job: %s", job.Name)
 						log.Println("=== BEGIN: Error Message ===")
