@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -17,22 +19,27 @@ import (
 	"github.com/locngoxuan/vulcan/core"
 )
 
+var workDir = "/workdir"
+
 func runJob(configFile, jobId, runOn string) error {
 	//check and pull image if it is necessary
 	log.Printf("Job: %s", jobId)
 	mounts := make([]mount.Mount, 0)
-	fileInfos, err := ioutil.ReadDir(pwd)
-	if err != nil {
-		return err
-	}
-
-	for _, fileInfo := range fileInfos {
+	err := filepath.Walk(pwd, func(path string, info fs.FileInfo, err error) error {
+		if pwd == path {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		f := strings.TrimPrefix(path, pwd)
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: filepath.Join(pwd, fileInfo.Name()),
-			Target: filepath.Join("/workdir", fileInfo.Name()),
+			Source: path,
+			Target: filepath.Join(workDir, f),
 		})
-	}
+		return nil
+	})
 
 	dockerCommandArg := make([]string, 0)
 	fis, err := ioutil.ReadDir(toolChains)
@@ -48,7 +55,7 @@ func runJob(configFile, jobId, runOn string) error {
 		})
 	}
 
-	configFile = filepath.Join("/workdir", ".vulcan", configFile)
+	configFile = filepath.Join(workDir, ".vulcan", configFile)
 	dockerCommandArg = append(dockerCommandArg, "/bin/vexec",
 		"--config", configFile,
 		"--job-id", jobId)
@@ -56,7 +63,7 @@ func runJob(configFile, jobId, runOn string) error {
 	containerConfig := &container.Config{
 		Image:        runOn,
 		Cmd:          dockerCommandArg,
-		WorkingDir:   "/workdir",
+		WorkingDir:   workDir,
 		Tty:          verbose,
 		AttachStdout: verbose,
 		Env:          os.Environ(),
