@@ -47,6 +47,7 @@ type JobConfig struct {
 	OS        string       `yaml:"os,omitempty"`
 	Arch      string       `yaml:"arch,omitempty"`
 	Artifacts []string     `yaml:"artifacts,omitempty"`
+	Hosts     []string     `yaml:"hosts,omitempty"`
 	Args      *ArgsConfig  `yaml:"args,omitempty"`
 	Steps     []StepConfig `yaml:"steps,omitempty"`
 }

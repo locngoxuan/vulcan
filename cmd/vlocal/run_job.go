@@ -146,6 +146,9 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,
 	}
+	if jobConfig.Hosts != nil && len(jobConfig.Hosts) > 0 {
+		hostConfig.ExtraHosts = jobConfig.Hosts
+	}
 
 	cli := dockerCli.Client
 	cont, err := cli.ContainerCreate(context.Background(), containerConfig, hostConfig, nil, nil, "")
@@ -173,6 +176,17 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 		core.StreamDockerLog(out, func(s string) {
 			log.Println(s)
 		})
+		statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
+		select {
+		case err := <-errCh:
+			if err != nil {
+				return err
+			}
+		case c := <-statusCh:
+			if c.StatusCode != 0 || c.Error != nil {
+				return fmt.Errorf(`exit code %v`, c)
+			}
+		}
 	} else {
 		statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
 		select {
