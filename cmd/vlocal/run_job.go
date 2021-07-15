@@ -27,42 +27,22 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 	mounts := make([]mount.Mount, 0)
 	baseDir := filepath.Join(pwd, jobConfig.BaseDir)
 	vulcanConfig := filepath.Join(pwd, ".vulcan")
-	set := make(map[string]struct{})
-	err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
-		if strings.HasPrefix(path, vulcanConfig) {
-			return nil
-		}
-		if baseDir == path {
-			return nil
-		}
-		if !info.IsDir() {
-			if filepath.Dir(path) != baseDir {
-				return nil
-			}
-		}
-		for p := range set {
-			if strings.HasPrefix(path, p) {
-				return nil
-			}
-		}
-		f := strings.TrimPrefix(path, baseDir)
-		set[path] = struct{}{}
-		mounts = append(mounts, mount.Mount{
-			Type:   mount.TypeBind,
-			Source: path,
-			Target: filepath.Join(workDir, f),
-		})
-		return nil
-	})
+	sources := make(map[string]struct{})
+	targets := make(map[string]struct{})
 
-	if _, ok := set[vulcanConfig]; !ok {
+	//mount vucal configuration folder
+	if _, ok := sources[vulcanConfig]; !ok {
+		sources[vulcanConfig] = struct{}{}
+		target := filepath.Join(workDir, ".vulcan")
+		targets[target] = struct{}{}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: vulcanConfig,
-			Target: filepath.Join(workDir, ".vulcan"),
+			Target: target,
 		})
 	}
 
+	//mount artifact first
 	if jobConfig.Artifacts != nil {
 		for _, artifact := range jobConfig.Artifacts {
 			parts := strings.Split(artifact, ":")
@@ -105,16 +85,54 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 				}
 			}
 
-			if _, ok := set[h]; !ok {
-				mounts = append(mounts, mount.Mount{
-					Type:   mount.TypeBind,
-					Source: h,
-					Target: t,
-				})
+			if _, ok := sources[h]; !ok {
+				if _, tok := targets[t]; !tok {
+					mounts = append(mounts, mount.Mount{
+						Type:   mount.TypeBind,
+						Source: h,
+						Target: t,
+					})
+				}
 			}
 
 		}
 	}
+
+	err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+		if strings.HasPrefix(path, vulcanConfig) {
+			return nil
+		}
+		if baseDir == path {
+			return nil
+		}
+		if !info.IsDir() {
+			if filepath.Dir(path) != baseDir {
+				return nil
+			}
+		}
+		for p := range sources {
+			if strings.HasPrefix(path, p) {
+				return nil
+			}
+		}
+
+		f := strings.TrimPrefix(path, baseDir)
+		target := filepath.Join(workDir, f)
+
+		for p := range targets {
+			if strings.HasPrefix(target, p) {
+				return nil
+			}
+		}
+		sources[path] = struct{}{}
+		targets[target] = struct{}{}
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: path,
+			Target: target,
+		})
+		return nil
+	})
 
 	dockerCommandArg := make([]string, 0)
 	fis, err := ioutil.ReadDir(toolChains)
