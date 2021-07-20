@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -9,10 +10,15 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var buildDb = filepath.Join("/tmp", "vulcan", "database")
+var tmpDir = filepath.Join("/tmp", "vulcan")
+var variableDSN = filepath.Join(tmpDir, "database")
+
+func CreateTmpDir() error {
+	return os.MkdirAll(tmpDir, 0755)
+}
 
 func SetCurrentStep(stepId string) error {
-	db, err := bolt.Open(buildDb, 0755, &bolt.Options{
+	db, err := bolt.Open(variableDSN, 0755, &bolt.Options{
 		Timeout: 1 * time.Second,
 	})
 	if err != nil {
@@ -27,14 +33,20 @@ func SetCurrentStep(stepId string) error {
 		return nil
 	}
 
-	return db.Update(func(t *bolt.Tx) error {
+	return db.Update(func(t *bolt.Tx) (err error) {
 		bck := t.Bucket([]byte("current_step"))
+		if bck == nil {
+			bck, err = t.CreateBucketIfNotExists([]byte("current_step"))
+			if err != nil {
+				return
+			}
+		}
 		return bck.Put([]byte("value"), []byte(stepId))
 	})
 }
 
 func SetOutput(key, value string) error {
-	db, err := bolt.Open(buildDb, 0755, &bolt.Options{
+	db, err := bolt.Open(variableDSN, 0755, &bolt.Options{
 		Timeout: 1 * time.Second,
 	})
 	if err != nil {
@@ -63,8 +75,14 @@ func SetOutput(key, value string) error {
 		return nil
 	}
 
-	return db.Update(func(t *bolt.Tx) error {
+	return db.Update(func(t *bolt.Tx) (err error) {
 		bck := t.Bucket([]byte("variables"))
+		if bck == nil {
+			bck, err = t.CreateBucketIfNotExists([]byte("variables"))
+			if err != nil {
+				return err
+			}
+		}
 		key = fmt.Sprintf(`steps_%s_outputs_%s`, stepId, key)
 		return bck.Put([]byte(key), []byte(value))
 	})
@@ -77,7 +95,7 @@ type OutputVal struct {
 
 func GetAllOutputs() ([]OutputVal, error) {
 	var outputs []OutputVal
-	db, err := bolt.Open(buildDb, 0755, &bolt.Options{
+	db, err := bolt.Open(variableDSN, 0755, &bolt.Options{
 		Timeout: 1 * time.Second,
 	})
 	if err != nil {
@@ -89,6 +107,9 @@ func GetAllOutputs() ([]OutputVal, error) {
 
 	err = db.View(func(t *bolt.Tx) error {
 		bck := t.Bucket([]byte("variables"))
+		if bck == nil {
+			return nil
+		}
 		bck.ForEach(func(k, v []byte) error {
 			outputs = append(outputs, OutputVal{
 				Key:   string(k),

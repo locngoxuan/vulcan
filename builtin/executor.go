@@ -25,6 +25,12 @@ func RunVExec() error {
 	if *jobId = strings.TrimSpace(*jobId); *jobId == "" {
 		return fmt.Errorf(`job id is missing`)
 	}
+
+	err := core.CreateTmpDir()
+	if err != nil {
+		return fmt.Errorf(`failed to create temporary directory %v`, err)
+	}
+
 	fmt.Printf("Run job: config-file=%s id=%s\n", *configFile, *jobId)
 	config, err := core.ReadProjectConfig(*configFile)
 	if err != nil {
