@@ -10,6 +10,7 @@ require (
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
+	go.etcd.io/bbolt v1.3.6
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6 // indirect
 	google.golang.org/grpc v1.39.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0

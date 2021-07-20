@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -55,15 +53,11 @@ func runJob(c *core.JobConfig) error {
 			globalArgs[k] = v
 		}
 	}
-	err := os.MkdirAll(stepOutput, 0755)
+	err := os.Setenv("GOTMPDIR", "/tmp")
 	if err != nil {
 		return err
 	}
-	err = os.Setenv("GOTMPDIR", "/tmp")
-	if err != nil {
-		return err
-	}
-	//build environment
+
 	for _, step := range c.Steps {
 		//build local arguments
 		args := make(map[string]string)
@@ -81,15 +75,7 @@ func runJob(c *core.JobConfig) error {
 		}
 
 		if step.Id != "" {
-			p := filepath.Join(stepOutput, step.Id)
-			f, err := os.Create(p)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = f.Close()
-			}()
-			err = f.Chmod(0755)
+			err = core.SetCurrentStep(step.Id)
 			if err != nil {
 				return err
 			}
@@ -135,26 +121,12 @@ func runJob(c *core.JobConfig) error {
 
 		if step.Id != "" {
 			//load input from /tmp/vulcan/output/step-id
-			f := filepath.Join(stepOutput, step.Id)
-			fi, err := os.Stat(f)
+			outputs, err := core.GetAllOutputs()
 			if err != nil {
 				return err
 			}
-			if fi.IsDir() {
-				return fmt.Errorf(`output of step %s is not file`, step.Id)
-			}
-			data, err := ioutil.ReadFile(f)
-			if err != nil {
-				return err
-			}
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				parts := strings.Split(line, "=")
-				if len(parts) == 2 {
-					globalArgs[fmt.Sprintf(`steps_%s_outputs_%s`, step.Id, parts[0])] = parts[1]
-				} else if len(parts) > 2 {
-					globalArgs[fmt.Sprintf(`steps_%s_outputs_%s`, step.Id, parts[0])] = strings.Join(parts[1:], "=")
-				}
+			for _, outp := range outputs {
+				globalArgs[outp.Key] = outp.Value
 			}
 		}
 	}

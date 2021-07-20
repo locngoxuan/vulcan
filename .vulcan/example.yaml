@@ -34,6 +34,6 @@ jobs:
     steps:
       - name: 'set variable'
         id: set_var
-        run: vset --kv msg1=variable --kv msg2=setter --step-id set_var
+        run: vset --kv msg1=variable --kv msg2=setter
       - name: 'print variable'
         run: echo "{{.job_args}} '{{.steps_set_var_outputs_msg1}} {{.steps_set_var_outputs_msg2}}'"
