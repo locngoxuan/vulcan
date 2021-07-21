@@ -24,3 +24,12 @@ rm -rf vendor
 go mod vendor
 
 go build --tags netgo -a -ldflags="-s -w" -o ./output/vulcan/toolchains/vset ./cmd/vset
+
+# build plugin: jfrog 
+go get -v ./cmd/vset
+
+rm -rf vendor
+
+go mod vendor
+
+go build --tags netgo -a -ldflags="-s -w" -o ./output/vulcan/plugins/jfrog ./plugins/jfrog

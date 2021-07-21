@@ -21,8 +21,8 @@ jobs:
         - name: 'Build'
           run: 'mvn clean install -U -Drevision={{.Revision}}'
         - name: 'Deploy to jfrog'
-          use: 'plugin/deploy-to-jfrog'
+          use: 'jfrog'
           with:
-            path: 'target/file'
+            source: 'target/file'
             username: '$USERNAME'
             password: '$PASSWORD'

@@ -59,7 +59,14 @@ func runJob(c *core.JobConfig) error {
 			globalArgs[k] = v
 		}
 	}
-	err := os.Setenv("GOTMPDIR", "/tmp")
+
+	p := os.Getenv("PATH")
+	p = fmt.Sprintf(`%s:%s:%s`, p, core.ToolChainInsideContainer, core.PluginInsideContainer)
+	err := os.Setenv("PATH", p)
+	if err != nil {
+		return err
+	}
+	err = os.Setenv("GOTMPDIR", "/tmp")
 	if err != nil {
 		return err
 	}
@@ -110,12 +117,6 @@ func runJob(c *core.JobConfig) error {
 			}
 			cmdLine := b.String()
 			b.Reset()
-			if step.With != nil {
-				step.Args.ReplaceEnv()
-				for k, v := range *step.With {
-					args[k] = v
-				}
-			}
 			err = runCommandLine(cmdLine, args)
 			if err != nil {
 				return err
@@ -169,6 +170,7 @@ func runCommandLine(cmdLine string, args map[string]string) error {
 		argStart = len(cmdArgs)
 	}
 	cmd := exec.Command(execFile, cmdArgs[argStart:]...)
+	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

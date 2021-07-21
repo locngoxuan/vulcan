@@ -1,39 +1,49 @@
-name: 'Using Vulcan to build Vulcan'
+name: "Using Vulcan to build Vulcan"
 jobs:
   vexec:
-    name: 'Build vulcan executor binary'
-    run-on: 'golang:1.16.5-alpine3.13'
+    name: "Build vulcan executor binary"
+    run-on: "golang:1.16.5-alpine3.13"
     steps:
-      - name: 'add missing and remove unused mod'
+      - name: "add missing and remove unused mod"
         run: go mod tidy
-      - name: 'download necessary modules and make vendored copy of dependencies'
+      - name: "download necessary modules and make vendored copy of dependencies"
         run: |
           go get -v ./cmd/vexec
           rm -rf vendor
           go mod vendor
-      - name: 'build binary file'
+      - name: "build binary file"
         run: go build -ldflags='-s -w' -o ./bin/vexec ./cmd/vexec
   vset:
-    name: 'Build vulcan variable setter'
-    run-on: 'golang:1.16.5-alpine3.13'
+    name: "Build vulcan variable setter"
+    run-on: "golang:1.16.5-alpine3.13"
     steps:
-      - name: 'add missing and remove unused mod'
+      - name: "add missing and remove unused mod"
         run: go mod tidy
-      - name: 'download necessary modules and make vendored copy of dependencies'
+      - name: "download necessary modules and make vendored copy of dependencies"
         run: |
           go get -v ./cmd/vset
           rm -rf vendor
           go mod vendor
-      - name: 'build binary file'
+      - name: "build binary file"
         run: go build -ldflags='-s -w' -o ./bin/vset ./cmd/vset
   set-var:
-    name: 'Example of variable setter'
-    run-on: 'golang:1.16.5-alpine3.13'
+    name: "Example of variable setter"
+    run-on: "golang:1.16.5-alpine3.13"
     args:
-      job_args: 'this is arg of job'
+      job_args: "this is arg of job"
     steps:
-      - name: 'set variable'
+      - name: "set variable"
         id: set_var
         run: vset --kv msg1=variable --kv msg2=setter
-      - name: 'print variable'
+      - name: "print variable"
         run: echo "{{.job_args}} '{{.steps_set_var_outputs_msg1}} {{.steps_set_var_outputs_msg2}}'"
+      - name: "execute jfrog plugin"
+        use: jfrog
+        with:
+          group: com.vulcan.example
+          artifact: jfrog
+          version: 1.0.0-SNAPSHOT
+          username: $USERNAME
+          password: $PASSWORD
+          repository: http://localhost:8080
+          source: ./LICENSE

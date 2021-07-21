@@ -54,7 +54,7 @@ func main() {
 	}
 	log.Printf("Toolchains directory: %s", toolChains)
 
-	if plugins = strings.TrimSpace(toolChains); plugins == "" {
+	if plugins = strings.TrimSpace(plugins); plugins == "" {
 		vucalHome := strings.TrimSpace(os.Getenv("VULCAN_HOME"))
 		if vucalHome == "" {
 			p, err := exec.LookPath("vlocal")
@@ -128,10 +128,14 @@ func main() {
 				if *jobId == "" || *jobId == job.Id {
 					err = runJob(fileInfo.Name(), *job, envs)
 					if err != nil {
-						log.Printf("failed to run job: %s", job.Name)
-						log.Println("=== BEGIN: Error Message ===")
-						log.Printf("%v", err)
-						log.Println("=== END: Error Message ===")
+						if verbose {
+							log.Printf("failed to run job: %s", job.Name)
+						} else {
+							log.Printf("failed to run job: %s", job.Name)
+							log.Println("=== BEGIN: Error Message ===")
+							log.Printf("%v", err)
+							log.Println("=== END: Error Message ===")
+						}
 						os.Exit(1)
 					}
 				}

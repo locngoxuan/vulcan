@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -135,21 +134,21 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 	})
 
 	dockerCommandArg := make([]string, 0)
-	fis, err := ioutil.ReadDir(toolChains)
-	if err != nil {
-		return err
-	}
-	//mount all binaries from toolchains to /bin
-	for _, fi := range fis {
-		mounts = append(mounts, mount.Mount{
-			Type:   mount.TypeBind,
-			Source: filepath.Join(toolChains, fi.Name()),
-			Target: filepath.Join("/bin", fi.Name()),
-		})
-	}
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: toolChains,
+		Target: core.ToolChainInsideContainer,
+	})
+
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: plugins,
+		Target: core.PluginInsideContainer,
+	})
 
 	configFile = filepath.Join(workDir, ".vulcan", configFile)
-	dockerCommandArg = append(dockerCommandArg, "/bin/vexec",
+	vexecFile := filepath.Join(core.ToolChainInsideContainer, "vexec")
+	dockerCommandArg = append(dockerCommandArg, vexecFile,
 		"--config", configFile,
 		"--job-id", jobConfig.Id)
 
@@ -198,11 +197,13 @@ func runJob(configFile string, jobConfig core.JobConfig, envs []string) error {
 		select {
 		case err := <-errCh:
 			if err != nil {
+				duration := 30 * time.Second
+				_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
 				return err
 			}
 		case c := <-statusCh:
 			if c.StatusCode != 0 || c.Error != nil {
-				return fmt.Errorf(`exit code %v`, c)
+				return fmt.Errorf(`exit code %v`, c.StatusCode)
 			}
 		}
 	} else {

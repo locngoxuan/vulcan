@@ -72,6 +72,7 @@ var states = map[cmdParserState]cmdParser{
 			b.WriteRune(r)
 		}
 		word := b.String()
+		word = ReadEnvVariableIfHas(word)
 		*args = append(*args, word)
 		return j, PARSER_SPACE
 	},
@@ -123,6 +124,7 @@ var states = map[cmdParserState]cmdParser{
 			b.WriteRune(r)
 		}
 		word := b.String()
+		word = ReadEnvVariableIfHas(word)
 		*args = append(*args, word)
 		return j, PARSER_SPACE
 	},

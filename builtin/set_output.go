@@ -22,8 +22,6 @@ func RunVSet() error {
 		if len(elems) == 1 {
 			return fmt.Errorf(`pair %s is malformed`, pair)
 		}
-		//w.WriteString(pair)
-		//w.WriteString("\n")
 		core.SetOutput(elems[0], strings.Join(elems[1:], "="))
 	}
 	return nil
