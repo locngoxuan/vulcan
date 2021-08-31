@@ -1,5 +1,7 @@
 # Vulcan
 
+**Deprecated: I have decided to retire this project since I found [drone.io](https://www.drone.io/). My project and drone.io are in same concept so I think it is better to contribute the bigger, more mature project than build a same thing from scratch.**
+
 ## 1. Introduction
 
 Github Actions is awesome but it is not completely free and it requires Github environment. Vulcan is created to solve these issue. It is inspired by Github Actions, so you may figure out few similarity between their configuration syntax, but they may are different in mechanism and concept.
